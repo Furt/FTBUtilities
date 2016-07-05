@@ -17,13 +17,19 @@ my_server_settings.ftbu.explosions=Explosions
 my_server_settings.ftbu.fake_players=Allow Fake Players
 my_server_settings.ftbu.security_level=Block Security Level
 
-# PlayerActions
-player_action.ftbu:guide=Guide
-player_action.ftbu:server_info=Server Info
-player_action.ftbu:claimed_chunks=Claimed Chunks
-player_action.ftbu:trade=Trade
-player_action.ftbu:notes=Notes
-player_action.ftbu:mail=Mail
+# Action Buttons
+sidebar_button.ftbu:guide=Guide
+sidebar_button.ftbu:server_info=Server Info
+sidebar_button.ftbu:claimed_chunks=Claimed Chunks
+sidebar_button.ftbu:trash_can=Trash Can
+sidebar_button.ftbu:shop=Shop
+sidebar_button.ftbu:mail=Mail
+
+# Keys
+key.categories.ftbu=FTBMods
+key.ftbu.guide=Open Guide
+key.ftbu.chunk_border=Toggle Chunk Border
+key.ftbu.light_values=Toggle Light Values
 
 # Misc
 ftbu.lang.timer_restart=Server restarts in %s
@@ -40,6 +46,7 @@ ftbu.label.pfriend=Pending Friend
 ftbu.label.new_friends=New friend requests!
 ftbu.label.new_friends_click=Click to accept all requests
 ftbu.button.block_security=Block Security
+ftbu.stat.dph=Deaths Per Hour
 
 # Warps
 ftbu.warp.set=Warp '%s' set!
@@ -76,13 +83,9 @@ ftbu.top.deaths=Deaths
 ftbu.top.deaths_per_hour=Deaths per hour
 
 # Chunktypes
-ftbu.chunktype.unloaded=Chunk not loaded
-ftbu.chunktype.spawn=Spawn Area
-ftbu.chunktype.world_border=World Border
-ftbu.chunktype.world_border.warning=You have reached the world border!
 ftbu.chunktype.wilderness=Wilderness
 ftbu.chunktype.claimed=Claimed Area
-ftbu.chunktype.chunkloaded=Chunkloaded
+ftbu.chunktype.loaded=Chunkloaded
 
 # Pack States
 ftbu.pack_state.download=Download

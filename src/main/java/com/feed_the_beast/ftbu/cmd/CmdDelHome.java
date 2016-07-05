@@ -3,7 +3,6 @@ package com.feed_the_beast.ftbu.cmd;
 import com.feed_the_beast.ftbl.api.ForgePlayerMP;
 import com.feed_the_beast.ftbl.api.ForgeWorldMP;
 import com.feed_the_beast.ftbl.api.cmd.CommandLM;
-import com.feed_the_beast.ftbl.api.cmd.CommandLevel;
 import com.feed_the_beast.ftbu.FTBULang;
 import com.feed_the_beast.ftbu.world.FTBUPlayerData;
 import net.minecraft.command.CommandException;
@@ -11,39 +10,50 @@ import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 
 public class CmdDelHome extends CommandLM
 {
     public CmdDelHome()
     {
-        super("delhome", CommandLevel.ALL);
+        super("delhome");
     }
 
     @Override
-    public String getCommandUsage(ICommandSender ics)
+    public int getRequiredPermissionLevel()
+    {
+        return 0;
+    }
+
+    @Nonnull
+    @Override
+    public String getCommandUsage(@Nonnull ICommandSender ics)
     {
         return '/' + commandName + " <ID>";
     }
 
+    @Nonnull
     @Override
-    public List<String> getTabCompletionOptions(MinecraftServer server, ICommandSender ics, String[] args, BlockPos pos)
+    public List<String> getTabCompletionOptions(MinecraftServer server, ICommandSender sender, String[] args, BlockPos pos)
     {
         if(args.length == 1)
         {
-            return getListOfStringsMatchingLastWord(args, FTBUPlayerData.get(ForgeWorldMP.inst.getPlayer(ics)).toMP().homes.list());
+            return getListOfStringsMatchingLastWord(args, FTBUPlayerData.get(ForgeWorldMP.inst.getPlayer(sender)).toMP().listHomes());
         }
 
-        return super.getTabCompletionOptions(server, ics, args, pos);
+        return super.getTabCompletionOptions(server, sender, args, pos);
     }
 
     @Override
-    public void execute(MinecraftServer server, ICommandSender ics, String[] args) throws CommandException
+    public void execute(@Nonnull MinecraftServer server, @Nonnull ICommandSender ics, @Nonnull String[] args) throws CommandException
     {
         ForgePlayerMP p = ForgePlayerMP.get(ics);
-        checkArgs(args, 1);
+        checkArgs(args, 1, "<home>");
 
-        if(FTBUPlayerData.get(p).toMP().homes.set(args[0], null))
+        args[0] = args[0].toLowerCase();
+
+        if(FTBUPlayerData.get(p).toMP().setHome(args[0], null))
         {
             FTBULang.home_del.printChat(ics, args[0]);
         }

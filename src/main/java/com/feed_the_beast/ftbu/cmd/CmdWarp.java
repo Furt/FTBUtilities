@@ -2,12 +2,11 @@ package com.feed_the_beast.ftbu.cmd;
 
 import com.feed_the_beast.ftbl.api.ForgeWorldMP;
 import com.feed_the_beast.ftbl.api.cmd.CommandLM;
-import com.feed_the_beast.ftbl.api.cmd.CommandLevel;
 import com.feed_the_beast.ftbl.util.BlockDimPos;
 import com.feed_the_beast.ftbl.util.LMDimUtils;
 import com.feed_the_beast.ftbu.FTBULang;
 import com.feed_the_beast.ftbu.world.FTBUWorldData;
-import latmod.lib.LMStringUtils;
+import com.latmod.lib.util.LMStringUtils;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -15,6 +14,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 
+import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.List;
 
@@ -22,42 +22,53 @@ public class CmdWarp extends CommandLM
 {
     public CmdWarp()
     {
-        super("warp", CommandLevel.ALL);
+        super("warp");
     }
 
     @Override
-    public String getCommandUsage(ICommandSender ics)
+    public int getRequiredPermissionLevel()
+    {
+        return 0;
+    }
+
+    @Nonnull
+    @Override
+    public String getCommandUsage(@Nonnull ICommandSender ics)
     {
         return '/' + commandName + " <ID>";
     }
 
+    @Nonnull
     @Override
-    public List<String> getTabCompletionOptions(MinecraftServer server, ICommandSender ics, String[] args, BlockPos pos)
+    public List<String> getTabCompletionOptions(MinecraftServer server, ICommandSender sender, String[] args, BlockPos pos)
     {
         if(args.length == 1)
         {
-            return getListOfStringsMatchingLastWord(args, FTBUWorldData.getW(ForgeWorldMP.inst).toMP().warps.list());
+            return getListOfStringsMatchingLastWord(args, FTBUWorldData.getW(ForgeWorldMP.inst).toMP().listWarps());
         }
 
-        return super.getTabCompletionOptions(server, ics, args, pos);
+        return super.getTabCompletionOptions(server, sender, args, pos);
     }
 
     @Override
-    public void execute(MinecraftServer server, ICommandSender ics, String[] args) throws CommandException
+    public void execute(@Nonnull MinecraftServer server, @Nonnull ICommandSender ics, @Nonnull String[] args) throws CommandException
     {
-        checkArgs(args, 1);
+        checkArgs(args, 1, "<warp>");
+
+        args[0] = args[0].toLowerCase();
+
         if(args[0].equals("list"))
         {
-            Collection<String> list = FTBUWorldData.getW(ForgeWorldMP.inst).toMP().warps.list();
+            Collection<String> list = FTBUWorldData.getW(ForgeWorldMP.inst).toMP().listWarps();
             ics.addChatMessage(new TextComponentString(list.isEmpty() ? "-" : LMStringUtils.strip(list)));
             return;
         }
 
         EntityPlayerMP ep = getCommandSenderAsPlayer(ics);
-        BlockDimPos p = FTBUWorldData.getW(ForgeWorldMP.inst).toMP().warps.get(args[0]);
+        BlockDimPos p = FTBUWorldData.getW(ForgeWorldMP.inst).toMP().getWarp(args[0]);
         if(p == null)
         {
-            throw new CommandException("ftbu.cmd.warp_not_set", args[0]);
+            throw FTBULang.warp_not_set.commandError(args[0]);
         }
         LMDimUtils.teleportPlayer(ep, p);
         FTBULang.warp_tp.printChat(ics, args[0]);

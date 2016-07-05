@@ -1,8 +1,9 @@
 package com.feed_the_beast.ftbu.badges;
 
 import com.feed_the_beast.ftbl.api.client.FTBLibClient;
-import com.feed_the_beast.ftbl.api.gui.GuiLM;
-import latmod.lib.util.FinalIDObject;
+import com.feed_the_beast.ftbl.api.client.gui.GuiLM;
+import com.feed_the_beast.ftbu.FTBUFinals;
+import com.latmod.lib.FinalIDObject;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.EntityEquipmentSlot;
@@ -12,10 +13,11 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.opengl.GL11;
 
+import javax.annotation.Nonnull;
+
 public class Badge extends FinalIDObject
 {
-    public static final ResourceLocation defTex = new ResourceLocation("ftbu", "textures/failed_badge.png");
-    public static final Badge emptyBadge = new Badge("-", null);
+    public static final ResourceLocation defTex = new ResourceLocation(FTBUFinals.MOD_ID, "textures/failed_badge.png");
 
     // -- //
 
@@ -28,6 +30,7 @@ public class Badge extends FinalIDObject
         imageURL = url;
     }
 
+    @Nonnull
     @Override
     public String toString()
     {
@@ -44,7 +47,7 @@ public class Badge extends FinalIDObject
 
         if(textureURL == null)
         {
-            textureURL = new ResourceLocation("ftbu_badges", getID() + ".png");
+            textureURL = new ResourceLocation(FTBUFinals.MOD_ID, "badges/" + getID() + ".png");
             FTBLibClient.getDownloadImage(textureURL, imageURL, defTex, null);
         }
 
@@ -70,7 +73,10 @@ public class Badge extends FinalIDObject
         FTBLibClient.pushMaxBrightness();
         GlStateManager.pushMatrix();
 
-        //TODO: Check if(ep.isSneaking()) GlStateManager.rotate(25F, 1F, 0F, 0F);
+        if(ep.isSneaking())
+        {
+            GlStateManager.rotate(25F, 1F, 0F, 0F);
+        }
 
         GlStateManager.translate(0.04F, 0.01F, 0.86F);
 
@@ -82,7 +88,7 @@ public class Badge extends FinalIDObject
 
         GlStateManager.translate(0F, 0F, -1F);
         GlStateManager.color(1F, 1F, 1F, 1F);
-        GuiLM.drawTexturedRectD(0D, 0D, 0D, 0.2D, 0.2D, 0D, 0D, 1D, 1D);
+        GuiLM.drawTexturedRect(0D, 0D, 0.2D, 0.2D, 0D, 0D, 1D, 1D);
 
         FTBLibClient.popMaxBrightness();
         GlStateManager.popMatrix();

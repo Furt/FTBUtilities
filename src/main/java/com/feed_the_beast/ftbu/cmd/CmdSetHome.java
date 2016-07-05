@@ -3,7 +3,6 @@ package com.feed_the_beast.ftbu.cmd;
 import com.feed_the_beast.ftbl.api.ForgePlayerMP;
 import com.feed_the_beast.ftbl.api.ForgeWorldMP;
 import com.feed_the_beast.ftbl.api.cmd.CommandLM;
-import com.feed_the_beast.ftbl.api.cmd.CommandLevel;
 import com.feed_the_beast.ftbu.FTBULang;
 import com.feed_the_beast.ftbu.FTBUPermissions;
 import com.feed_the_beast.ftbu.world.FTBUPlayerData;
@@ -13,49 +12,60 @@ import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 
 public class CmdSetHome extends CommandLM
 {
     public CmdSetHome()
     {
-        super("sethome", CommandLevel.ALL);
+        super("sethome");
     }
 
     @Override
-    public String getCommandUsage(ICommandSender ics)
+    public int getRequiredPermissionLevel()
+    {
+        return 0;
+    }
+
+    @Nonnull
+    @Override
+    public String getCommandUsage(@Nonnull ICommandSender ics)
     {
         return '/' + commandName + " <ID>";
     }
 
+    @Nonnull
     @Override
-    public List<String> getTabCompletionOptions(MinecraftServer server, ICommandSender ics, String[] args, BlockPos pos)
+    public List<String> getTabCompletionOptions(MinecraftServer server, ICommandSender sender, String[] args, BlockPos pos)
     {
         if(args.length == 1)
         {
-            return getListOfStringsMatchingLastWord(args, FTBUPlayerData.get(ForgeWorldMP.inst.getPlayer(ics)).toMP().homes.list());
+            return getListOfStringsMatchingLastWord(args, FTBUPlayerData.get(ForgeWorldMP.inst.getPlayer(sender)).toMP().listHomes());
         }
         return null;
     }
 
     @Override
-    public void execute(MinecraftServer server, ICommandSender ics, String[] args) throws CommandException
+    public void execute(@Nonnull MinecraftServer server, @Nonnull ICommandSender ics, @Nonnull String[] args) throws CommandException
     {
         ForgePlayerMP p = ForgePlayerMP.get(ics);
         FTBUPlayerDataMP d = FTBUPlayerData.get(p).toMP();
-        checkArgs(args, 1);
+        checkArgs(args, 1, "<home>");
 
-        int maxHomes = FTBUPermissions.homes_max.get(p.getProfile()).getAsShort();
+        args[0] = args[0].toLowerCase();
 
-        if(maxHomes <= 0 || d.homes.size() >= maxHomes)
+        int maxHomes = FTBUPermissions.HOMES_MAX.get(p.getProfile());
+
+        if(maxHomes <= 0 || d.homesSize() >= maxHomes)
         {
-            if(maxHomes == 0 || d.homes.get(args[0]) == null)
+            if(maxHomes == 0 || d.getHome(args[0]) == null)
             {
                 throw FTBULang.home_limit.commandError();
             }
         }
 
-        d.homes.set(args[0], p.getPos());
+        d.setHome(args[0], p.getPos());
         FTBULang.home_set.printChat(ics, args[0]);
     }
 }

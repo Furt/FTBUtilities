@@ -1,35 +1,33 @@
 package com.feed_the_beast.ftbu.world;
 
 import com.feed_the_beast.ftbl.api.ForgePlayer;
-import com.feed_the_beast.ftbl.api.ForgeWorldMP;
 import com.feed_the_beast.ftbl.api.config.ConfigEntryBool;
-import com.feed_the_beast.ftbl.api.config.ConfigEntryEnum;
-import com.feed_the_beast.ftbl.api.config.ConfigGroup;
-import com.feed_the_beast.ftbl.util.ChunkDimPos;
-import com.feed_the_beast.ftbl.util.PrivacyLevel;
+import com.feed_the_beast.ftbl.util.BlockDimPos;
+import com.feed_the_beast.ftbl.util.LMNBTUtils;
 import com.feed_the_beast.ftbu.FTBUPermissions;
-import latmod.lib.Bits;
-import latmod.lib.IntMap;
+import com.latmod.lib.io.Bits;
+import com.latmod.lib.util.LMTroveUtils;
+import gnu.trove.map.TIntIntMap;
+import gnu.trove.map.hash.TIntIntHashMap;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagIntArray;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.INBTSerializable;
 
 import java.util.Collection;
-import java.util.UUID;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by LatvianModder on 23.02.2016.
  */
 public class FTBUPlayerDataMP extends FTBUPlayerData implements INBTSerializable<NBTTagCompound>
 {
-    public Warps homes;
-    public ChunkType lastChunkType;
+    public final ConfigEntryBool chatLinks;
+    private Map<String, BlockDimPos> homes;
 
     public FTBUPlayerDataMP()
     {
-        homes = new Warps();
+        chatLinks = new ConfigEntryBool(true);
     }
 
     @Override
@@ -38,117 +36,31 @@ public class FTBUPlayerDataMP extends FTBUPlayerData implements INBTSerializable
         return this;
     }
 
-    public ConfigGroup addMyServerSettings()
-    {
-        ConfigGroup group = new ConfigGroup("ftbu");
-
-        group.add(new ConfigEntryBool("render_badge", false)
-        {
-            @Override
-            public boolean getAsBoolean()
-            {
-                return getFlag(RENDER_BADGE);
-            }
-
-            @Override
-            public void set(boolean b)
-            {
-                setFlag(RENDER_BADGE, b);
-            }
-        }, false);
-
-        group.add(new ConfigEntryBool("chat_links", false)
-        {
-            @Override
-            public boolean getAsBoolean()
-            {
-                return getFlag(CHAT_LINKS);
-            }
-
-            @Override
-            public void set(boolean b)
-            {
-                setFlag(CHAT_LINKS, b);
-            }
-        }, false);
-
-        group.add(new ConfigEntryBool("explosions", false)
-        {
-            @Override
-            public boolean getAsBoolean()
-            {
-                return getFlag(EXPLOSIONS);
-            }
-
-            @Override
-            public void set(boolean b)
-            {
-                setFlag(EXPLOSIONS, b);
-            }
-        }, false);
-
-        group.add(new ConfigEntryBool("fake_players", false)
-        {
-            @Override
-            public boolean getAsBoolean()
-            {
-                return getFlag(FAKE_PLAYERS);
-            }
-
-            @Override
-            public void set(boolean b)
-            {
-                setFlag(FAKE_PLAYERS, b);
-            }
-        }, false);
-
-        group.add(new ConfigEntryEnum<PrivacyLevel>("block_security", PrivacyLevel.VALUES_3, PrivacyLevel.FRIENDS, false)
-        {
-            @Override
-            public PrivacyLevel get()
-            {
-                return blocks;
-            }
-
-            @Override
-            public void set(Object b)
-            {
-                blocks = (PrivacyLevel) b;
-            }
-        }, false);
-
-        return group;
-    }
-
     @Override
     public void deserializeNBT(NBTTagCompound tag)
     {
-        flags = tag.getByte("Flags");
-        blocks = tag.hasKey("BlockSecurity") ? PrivacyLevel.VALUES_3[tag.getByte("BlockSecurity")] : PrivacyLevel.FRIENDS;
-        homes.readFromNBT(tag, "Homes");
+        byte flags = tag.getByte("Flags");
 
-        if(tag.hasKey("ClaimedChunks"))
+        renderBadge.set(Bits.getBit(flags, (byte) 0));
+        chatLinks.set(Bits.getBit(flags, (byte) 1));
+
+        if(tag.hasKey("Homes"))
         {
-            NBTTagList tag1 = tag.getTagList("ClaimedChunks", Constants.NBT.TAG_INT_ARRAY);
+            homes = new HashMap<>();
 
-            UUID id = ForgeWorldMP.currentPlayer.getProfile().getId();
+            NBTTagCompound tag1 = (NBTTagCompound) tag.getTag("Homes");
 
-            for(int i = 0; i < tag1.tagCount(); i++)
+            if(tag1 != null && !tag1.hasNoTags())
             {
-                int[] ai = tag1.getIntArrayAt(i);
-
-                if(ai.length >= 3)
+                for(String s1 : LMNBTUtils.getMapKeys(tag1))
                 {
-                    ClaimedChunk chunk = new ClaimedChunk(id, new ChunkDimPos(ai[0], ai[1], ai[2]));
-
-                    if(ai.length >= 4)
-                    {
-                        chunk.flags = (byte) ai[3];
-                    }
-
-                    ClaimedChunks.inst.chunks.put(chunk.pos, chunk);
+                    setHome(s1.toLowerCase(), new BlockDimPos(tag1.getIntArray(s1)));
                 }
             }
+        }
+        else
+        {
+            homes = null;
         }
     }
 
@@ -157,43 +69,26 @@ public class FTBUPlayerDataMP extends FTBUPlayerData implements INBTSerializable
     {
         NBTTagCompound tag = new NBTTagCompound();
 
+        byte flags = 0;
+
+        flags = Bits.setBit(flags, (byte) 0, renderBadge.getAsBoolean());
+        flags = Bits.setBit(flags, (byte) 1, chatLinks.getAsBoolean());
+
         if(flags != 0)
         {
             tag.setByte("Flags", flags);
         }
 
-        if(blocks != PrivacyLevel.FRIENDS)
+        if(homes != null && !homes.isEmpty())
         {
-            tag.setByte("BlockSecurity", (byte) blocks.ordinal());
-        }
+            NBTTagCompound tag1 = new NBTTagCompound();
 
-        homes.writeToNBT(tag, "Homes");
-
-        Collection<ClaimedChunk> chunks = ClaimedChunks.inst.getChunks(ForgeWorldMP.currentPlayer.getProfile().getId(), null);
-
-        if(!chunks.isEmpty())
-        {
-            NBTTagList tag1 = new NBTTagList();
-
-            for(ClaimedChunk c : chunks)
+            for(Map.Entry<String, BlockDimPos> e : homes.entrySet())
             {
-                byte flags = Bits.setBit(c.flags, ClaimedChunk.FORCED, false);
-
-                int ai[] = (flags == 0) ? new int[3] : new int[4];
-
-                ai[0] = c.pos.dim;
-                ai[1] = c.pos.chunkXPos;
-                ai[2] = c.pos.chunkZPos;
-
-                if(flags != 0)
-                {
-                    ai[3] = flags & 0xFF;
-                }
-
-                tag1.appendTag(new NBTTagIntArray(ai));
+                tag1.setIntArray(e.getKey(), e.getValue().toIntArray());
             }
 
-            tag.setTag("ClaimedChunks", tag1);
+            tag.setTag("Homes", tag1);
         }
 
         return tag;
@@ -202,19 +97,59 @@ public class FTBUPlayerDataMP extends FTBUPlayerData implements INBTSerializable
     @Override
     public void writeSyncData(ForgePlayer player, NBTTagCompound tag, boolean self)
     {
-        IntMap map = new IntMap();
+        TIntIntMap map = new TIntIntHashMap();
 
-        map.putIfNot0(0, flags);
-        map.putIfNot0(1, blocks.ordinal());
+        if(renderBadge.getAsBoolean())
+        {
+            map.put(0, 1);
+        }
 
         if(self)
         {
-            map.putIfNot0(10, ClaimedChunks.inst.getClaimedChunks(player.getProfile().getId()));
-            map.putIfNot0(11, ClaimedChunks.inst.getLoadedChunks(player.getProfile().getId(), true));
-            map.putIfNot0(12, FTBUPermissions.claims_max_chunks.get(player.getProfile()).getAsShort());
-            map.putIfNot0(13, FTBUPermissions.chunkloader_max_chunks.get(player.getProfile()).getAsShort());
+            LMTroveUtils.put(map, 10, FTBUWorldDataMP.chunks.getClaimedChunks(player.getProfile().getId()), 0);
+            LMTroveUtils.put(map, 11, FTBUWorldDataMP.chunks.getLoadedChunks(player.getProfile().getId()), 0);
+            LMTroveUtils.put(map, 12, FTBUPermissions.CLAIMS_MAX_CHUNKS.get(player.getProfile()), 0);
+            LMTroveUtils.put(map, 13, FTBUPermissions.CHUNKLOADER_MAX_CHUNKS.get(player.getProfile()), 0);
         }
 
-        tag.setIntArray("F", map.toArray());
+        if(!map.isEmpty())
+        {
+            tag.setIntArray("F", LMTroveUtils.toIntList(map).toArray());
+        }
+    }
+
+    public Collection<String> listHomes()
+    {
+        if(homes == null || homes.isEmpty())
+        {
+            return Collections.emptySet();
+        }
+
+        return homes.keySet();
+    }
+
+    public BlockDimPos getHome(String s)
+    {
+        return homes == null ? null : homes.get(s.toLowerCase());
+    }
+
+    public boolean setHome(String s, BlockDimPos pos)
+    {
+        if(pos == null)
+        {
+            return homes != null && homes.remove(s) != null;
+        }
+
+        if(homes == null)
+        {
+            homes = new HashMap<>();
+        }
+
+        return homes.put(s, pos.copy()) == null;
+    }
+
+    public int homesSize()
+    {
+        return homes == null ? 0 : homes.size();
     }
 }

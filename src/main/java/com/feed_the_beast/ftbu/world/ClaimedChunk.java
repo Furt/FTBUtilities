@@ -1,32 +1,28 @@
 package com.feed_the_beast.ftbu.world;
 
+import com.feed_the_beast.ftbl.api.ForgePlayer;
 import com.feed_the_beast.ftbl.api.ForgePlayerMP;
-import com.feed_the_beast.ftbl.api.ForgeWorldMP;
+import com.feed_the_beast.ftbl.api.ForgeWorld;
+import com.feed_the_beast.ftbl.api.LangKey;
 import com.feed_the_beast.ftbl.util.ChunkDimPos;
-import latmod.lib.Bits;
-import latmod.lib.annotations.IFlagContainer;
+import net.minecraft.util.math.BlockPos;
 
-import java.util.UUID;
-
-public final class ClaimedChunk implements IFlagContainer
+public final class ClaimedChunk
 {
-    public static final byte CHUNKLOADED = 0;
-    public static final byte FORCED = 1;
+    public static final LangKey LANG_WILDERNESS = new LangKey("ftbu.chunktype.wilderness");
+    public static final LangKey LANG_CLAIMED = new LangKey("ftbu.chunktype.claimed");
+    public static final LangKey LANG_LOADED = new LangKey("ftbu.chunktype.loaded");
 
+    public final ForgeWorld world;
     public final ChunkDimPos pos;
-    public final UUID ownerID;
-    public boolean isForced = false;
-    public byte flags = 0;
+    public final ForgePlayer owner;
+    public boolean loaded, forced;
 
-    public ClaimedChunk(UUID o, ChunkDimPos p)
+    public ClaimedChunk(ForgeWorld w, ForgePlayer o, ChunkDimPos p)
     {
+        world = w;
         pos = p;
-        ownerID = o;
-    }
-
-    public ForgePlayerMP getOwner()
-    {
-        return ForgeWorldMP.inst.getPlayer(ownerID);
+        owner = o;
     }
 
     @Override
@@ -47,15 +43,30 @@ public final class ClaimedChunk implements IFlagContainer
         return pos.hashCode();
     }
 
-    @Override
-    public void setFlag(byte flag, boolean b)
+    public boolean isChunkOwner(ForgePlayer p)
     {
-        flags = Bits.setBit(flags, flag, b);
+        return p != null && p.equalsPlayer(owner);
     }
 
-    @Override
-    public boolean getFlag(byte flag)
+    public boolean canInteract(ForgePlayerMP p, boolean leftClick, BlockPos pos)
     {
-        return Bits.getBit(flags, flag);
+        if(owner.equalsPlayer(p))
+        {
+            return true;
+        }
+        else if(!owner.hasTeam())
+        {
+            return true;
+        }
+        else if(p.isFake())
+        {
+            return FTBUTeamData.get(owner.getTeam()).toMP().fakePlayers.getAsBoolean();
+        }
+        /*else if(p.isOnline() && PermissionAPI.hasPermission(p.getProfile(), FTBLibPermissions.INTERACT_SECURE, false, new Context(p.getPlayer(), pos)))
+        {
+            return true;
+        }*/
+
+        return owner.getTeam().getStatus(p).isAlly();
     }
 }

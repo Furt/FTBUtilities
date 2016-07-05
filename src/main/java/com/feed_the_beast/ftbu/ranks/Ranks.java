@@ -1,18 +1,21 @@
 package com.feed_the_beast.ftbu.ranks;
 
-import com.feed_the_beast.ftbl.api.permissions.ForgePermissionRegistry;
-import com.feed_the_beast.ftbl.api.permissions.IPermissionHandler;
-import com.feed_the_beast.ftbl.api.permissions.RankConfig;
+import com.feed_the_beast.ftbl.api.permissions.Context;
+import com.feed_the_beast.ftbl.api.permissions.PermissionHandler;
+import com.feed_the_beast.ftbl.api.permissions.rankconfig.RankConfig;
+import com.feed_the_beast.ftbl.api.permissions.rankconfig.RankConfigAPI;
 import com.feed_the_beast.ftbl.util.FTBLib;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.latmod.lib.json.LMJsonUtils;
+import com.latmod.lib.util.LMFileUtils;
+import com.latmod.lib.util.LMUtils;
 import com.mojang.authlib.GameProfile;
-import latmod.lib.LMFileUtils;
-import latmod.lib.LMJsonUtils;
-import latmod.lib.LMUtils;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraftforge.fml.common.eventhandler.Event;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class Ranks implements IPermissionHandler
+public class Ranks implements PermissionHandler, RankConfigAPI.Handler
 {
     public static final Rank PLAYER = new Rank("Player");
     public static final Rank ADMIN = new Rank("Admin");
@@ -157,12 +160,8 @@ public class Ranks implements IPermissionHandler
     public void generateExampleFiles()
     {
         List<RankConfig> sortedRankConfigs = new ArrayList<>();
-        sortedRankConfigs.addAll(ForgePermissionRegistry.getRegistredConfig());
+        sortedRankConfigs.addAll(RankConfigAPI.getRankConfigValues());
         Collections.sort(sortedRankConfigs, LMUtils.ID_COMPARATOR);
-
-        List<String> sortedPermissions = new ArrayList<>();
-        sortedPermissions.addAll(ForgePermissionRegistry.getRegistredPermissions());
-        Collections.sort(sortedPermissions);
 
         try
         {
@@ -174,25 +173,6 @@ public class Ranks implements IPermissionHandler
             list.add("-- Permissions --");
             list.add("");
 
-            for(String p : sortedPermissions)
-            {
-                list.add(p);
-                
-				/*
-                String[] info = p.getInfo();
-				
-				if(info != null && info.length > 0)
-				{
-					for(String s : info)
-					{
-						list.add("  " + s);
-					}
-				}
-				*/
-
-                list.add("");
-            }
-
             list.add("-- Config --");
             list.add("");
 
@@ -200,7 +180,7 @@ public class Ranks implements IPermissionHandler
 
             for(RankConfig p : sortedRankConfigs)
             {
-                list.add(p.getID().toString());
+                list.add(p.getID());
                 /*
                 info = p.getInfo();
 				
@@ -258,12 +238,6 @@ public class Ranks implements IPermissionHandler
             }
 
             rankPlayer.permissions.clear();
-
-            for(String c : sortedPermissions)
-            {
-                rankPlayer.permissions.put(c, ForgePermissionRegistry.getDefaultPlayerValue(c));
-            }
-
             o1.add(rankPlayer.getID(), rankPlayer.getSerializableElement());
 
             Rank rankAdmin = new Rank(ADMIN.getID());
@@ -315,14 +289,15 @@ public class Ranks implements IPermissionHandler
         }
     }
 
+    @Nonnull
     @Override
-    public Boolean handlePermission(String permission, GameProfile profile)
+    public Event.Result hasPermission(@Nonnull GameProfile profile, @Nonnull String permission, @Nonnull Context context)
     {
         return getRankOf(profile).handlePermission(permission);
     }
 
     @Override
-    public JsonElement handleRankConfig(RankConfig config, GameProfile profile)
+    public JsonElement getRankConfig(@Nonnull GameProfile profile, @Nonnull RankConfig config)
     {
         return getRankOf(profile).handleRankConfig(config);
     }

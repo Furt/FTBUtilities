@@ -1,32 +1,32 @@
 package com.feed_the_beast.ftbu.handlers;
 
 import com.feed_the_beast.ftbl.api.events.ForgeWorldEvent;
-import com.feed_the_beast.ftbl.util.ChunkDimPos;
 import com.feed_the_beast.ftbu.FTBUCapabilities;
 import com.feed_the_beast.ftbu.FTBUFinals;
+import com.feed_the_beast.ftbu.badges.Badge;
 import com.feed_the_beast.ftbu.config.FTBUConfigGeneral;
-import com.feed_the_beast.ftbu.world.ClaimedChunks;
 import com.feed_the_beast.ftbu.world.FTBUWorldDataMP;
 import com.feed_the_beast.ftbu.world.FTBUWorldDataSP;
-import latmod.lib.MathHelperLM;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.passive.EntityChicken;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.event.world.ExplosionEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 public class FTBUWorldEventHandler // FTBLIntegration
 {
     @SubscribeEvent
-    public void addWorldData(ForgeWorldEvent.AttachCapabilities event)
+    public void attachCapabilities(ForgeWorldEvent.AttachCapabilities event)
     {
         ResourceLocation r = new ResourceLocation(FTBUFinals.MOD_ID, "data");
         event.addCapability(r, event.world.getSide().isServer() ? new FTBUWorldDataMP() : new FTBUWorldDataSP());
     }
 
     @SubscribeEvent
-    public void onWorldLoaded(ForgeWorldEvent.OnLoaded event)
+    public void onWorldLoaded(ForgeWorldEvent.Loaded event)
     {
         if(event.world.hasCapability(FTBUCapabilities.FTBU_WORLD_DATA, null))
         {
@@ -35,7 +35,7 @@ public class FTBUWorldEventHandler // FTBLIntegration
     }
 
     @SubscribeEvent
-    public void onWorldLoadedBeforePlayers(ForgeWorldEvent.OnLoadedBeforePlayers event)
+    public void onWorldLoadedBeforePlayers(ForgeWorldEvent.LoadedBeforePlayers event)
     {
         if(event.world.hasCapability(FTBUCapabilities.FTBU_WORLD_DATA, null))
         {
@@ -44,7 +44,7 @@ public class FTBUWorldEventHandler // FTBLIntegration
     }
 
     @SubscribeEvent
-    public void onWorldClosed(ForgeWorldEvent.OnClosed event)
+    public void onWorldClosed(ForgeWorldEvent.Closed event)
     {
         if(event.world.hasCapability(FTBUCapabilities.FTBU_WORLD_DATA, null))
         {
@@ -57,9 +57,32 @@ public class FTBUWorldEventHandler // FTBLIntegration
     {
         if(event.world.getSide().isServer())
         {
+            NBTTagCompound tag = new NBTTagCompound();
+
+            NBTTagCompound tag1 = new NBTTagCompound();
+
+            for(Badge b : FTBUWorldDataMP.localBadges.badgeMap.values())
+            {
+                tag1.setString(b.getID(), b.imageURL);
+            }
+
+            tag.setTag("B", tag1);
+
+            event.syncData.setTag("FTBU", tag);
         }
         else
         {
+            NBTTagCompound tag = event.syncData.getCompoundTag("FTBU");
+
+            NBTTagCompound tag1 = tag.getCompoundTag("B");
+
+            FTBUWorldDataSP.localBadges.clear();
+            FTBUWorldDataSP.localBadges.copyFrom(FTBUWorldDataSP.globalBadges);
+
+            for(String key : tag1.getKeySet())
+            {
+                FTBUWorldDataSP.localBadges.badgeMap.put(key, new Badge(key, tag1.getString(key)));
+            }
         }
     }
 
@@ -85,7 +108,7 @@ public class FTBUWorldEventHandler // FTBLIntegration
             return false;
         }
 
-        if(FTBUConfigGeneral.safe_spawn.getAsBoolean() && ClaimedChunks.isInSpawnD(e.dimension, e.posX, e.posZ))
+        if(FTBUConfigGeneral.safe_spawn.getAsBoolean() && FTBUWorldDataMP.isInSpawnD(e.dimension, e.posX, e.posZ))
         {
             if(e instanceof IMob)
             {
@@ -101,16 +124,9 @@ public class FTBUWorldEventHandler // FTBLIntegration
     }
 
     @SubscribeEvent
-    public void onExplosionStart(net.minecraftforge.event.world.ExplosionEvent.Start e)
+    public void onExplosionStart(ExplosionEvent.Start e)
     {
-        if(e.getWorld().isRemote)
-        {
-            return;
-        }
-        int cx = MathHelperLM.chunk(e.getExplosion().getPosition().xCoord);
-        int cz = MathHelperLM.chunk(e.getExplosion().getPosition().yCoord);
-
-        if(!ClaimedChunks.inst.allowExplosion(new ChunkDimPos(e.getWorld().provider.getDimension(), cx, cz)))
+        if(!e.getWorld().isRemote && !FTBUWorldDataMP.allowExplosion(e.getWorld(), e.getExplosion()))
         {
             e.setCanceled(true);
         }

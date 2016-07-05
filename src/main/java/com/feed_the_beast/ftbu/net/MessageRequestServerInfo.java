@@ -4,8 +4,10 @@ import com.feed_the_beast.ftbl.api.ForgePlayerMP;
 import com.feed_the_beast.ftbl.api.ForgeWorldMP;
 import com.feed_the_beast.ftbl.api.net.LMNetworkWrapper;
 import com.feed_the_beast.ftbl.api.net.MessageToServer;
-import com.feed_the_beast.ftbu.api.guide.ServerInfoFile;
+import com.feed_the_beast.ftbl.gui.GuiLoading;
+import com.feed_the_beast.ftbu.gui.guide.ServerInfoFile;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.entity.player.EntityPlayerMP;
 
 public class MessageRequestServerInfo extends MessageToServer<MessageRequestServerInfo>
@@ -28,6 +30,12 @@ public class MessageRequestServerInfo extends MessageToServer<MessageRequestServ
     @Override
     public void toBytes(ByteBuf io)
     {
+    }
+
+    public GuiScreen openGui()
+    {
+        sendToServer();
+        return new GuiLoading().getWrapper();
     }
 
     @Override

@@ -5,13 +5,11 @@ import com.feed_the_beast.ftbl.api.item.ItemStackSerializer;
 import com.feed_the_beast.ftbl.util.JsonHelper;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonPrimitive;
-import latmod.lib.annotations.Info;
-import net.minecraft.init.Items;
+import com.latmod.lib.annotations.Info;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentString;
 
+import javax.annotation.Nonnull;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,24 +18,22 @@ import java.util.Map;
 public class FTBUConfigLogin
 {
     @Info("Message of the day. This will be displayed when player joins the server")
-    public static final ConfigEntryChatComponentList motd = new ConfigEntryChatComponentList("motd");
+    public static final ConfigEntryChatComponentList motd = new ConfigEntryChatComponentList();
 
     @Info({"Items to give player when he first joins the server", "Format: \"StringID Size Metadata\" or {nbt}"})
-    public static final ConfigEntryItemStackList starting_items = new ConfigEntryItemStackList("starting_items");
+    public static final ConfigEntryItemStackList starting_items = new ConfigEntryItemStackList();
 
     public static class ConfigEntryChatComponentList extends ConfigEntryCustom
     {
         public final List<ITextComponent> components;
 
-        public ConfigEntryChatComponentList(String id)
+        public ConfigEntryChatComponentList()
         {
-            super(id);
             components = new ArrayList<>();
-            components.add(new TextComponentString("Welcome to the server!"));
         }
 
         @Override
-        public void fromJson(JsonElement o)
+        public void fromJson(@Nonnull JsonElement o)
         {
             components.clear();
 
@@ -55,6 +51,7 @@ public class FTBUConfigLogin
             }
         }
 
+        @Nonnull
         @Override
         public JsonElement getSerializableElement()
         {
@@ -73,15 +70,13 @@ public class FTBUConfigLogin
     {
         private final List<Map.Entry<ItemStack, JsonElement>> items;
 
-        public ConfigEntryItemStackList(String id)
+        public ConfigEntryItemStackList()
         {
-            super(id);
             items = new ArrayList<>();
-            items.add(new AbstractMap.SimpleEntry<>(new ItemStack(Items.APPLE, 16), new JsonPrimitive("minecraft:apple 16 0")));
         }
 
         @Override
-        public void fromJson(JsonElement o)
+        public void fromJson(@Nonnull JsonElement o)
         {
             items.clear();
 
@@ -99,6 +94,7 @@ public class FTBUConfigLogin
             }
         }
 
+        @Nonnull
         @Override
         public JsonElement getSerializableElement()
         {

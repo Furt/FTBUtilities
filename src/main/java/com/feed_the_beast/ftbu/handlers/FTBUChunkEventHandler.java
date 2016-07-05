@@ -1,8 +1,8 @@
 package com.feed_the_beast.ftbu.handlers;
 
+import com.feed_the_beast.ftbl.FTBLibStats;
 import com.feed_the_beast.ftbl.api.ForgePlayerMP;
 import com.feed_the_beast.ftbl.api.ForgeWorldMP;
-import com.feed_the_beast.ftbl.util.EventBusHelper;
 import com.feed_the_beast.ftbl.util.FTBLib;
 import com.feed_the_beast.ftbl.util.LMDimUtils;
 import com.feed_the_beast.ftbu.FTBU;
@@ -11,9 +11,9 @@ import com.feed_the_beast.ftbu.FTBUPermissions;
 import com.feed_the_beast.ftbu.config.FTBUConfigModules;
 import com.feed_the_beast.ftbu.world.ChunkloaderType;
 import com.feed_the_beast.ftbu.world.ClaimedChunk;
-import com.feed_the_beast.ftbu.world.ClaimedChunks;
+import com.feed_the_beast.ftbu.world.FTBUWorldDataMP;
 import com.google.common.collect.MapMaker;
-import latmod.lib.LMUtils;
+import com.latmod.lib.util.LMUtils;
 import net.minecraft.world.World;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.util.Constants;
@@ -35,12 +35,11 @@ public class FTBUChunkEventHandler implements ForgeChunkManager.LoadingCallback,
     {
         if(!ForgeChunkManager.getConfig().hasCategory(FTBUFinals.MOD_ID))
         {
-            ForgeChunkManager.getConfig().get(FTBUFinals.MOD_ID, "maximumTicketCount", 2000).setMinValue(0);
-            ForgeChunkManager.getConfig().get(FTBUFinals.MOD_ID, "maximumChunksPerTicket", 30000).setMinValue(0);
+            ForgeChunkManager.getConfig().get(FTBUFinals.MOD_ID, "maximumTicketCount", 100).setMinValue(0);
+            ForgeChunkManager.getConfig().get(FTBUFinals.MOD_ID, "maximumChunksPerTicket", 1000000).setMinValue(0);
             ForgeChunkManager.getConfig().save();
         }
 
-        EventBusHelper.register(this);
         ForgeChunkManager.setForcedChunkLoadingCallback(FTBU.inst, this);
     }
 
@@ -118,13 +117,15 @@ public class FTBUChunkEventHandler implements ForgeChunkManager.LoadingCallback,
 
             if(playerID != null)
             {
-                Collection<ClaimedChunk> chunks = ClaimedChunks.inst.getChunks(playerID, world.provider.getDimension());
+                Collection<ClaimedChunk> chunks = FTBUWorldDataMP.chunks.getChunks(playerID);
 
-                if(chunks != null)
+                if(!chunks.isEmpty())
                 {
+                    int dim = world.provider.getDimension();
+
                     for(ClaimedChunk c : chunks)
                     {
-                        if(c.getFlag(ClaimedChunk.CHUNKLOADED))
+                        if(c.loaded && c.pos.dim == dim)
                         {
                             ForgeChunkManager.forceChunk(t, c.pos);
                         }
@@ -166,71 +167,78 @@ public class FTBUChunkEventHandler implements ForgeChunkManager.LoadingCallback,
 		int loaded = 0;
 		int unloaded = 0;*/
 
-        for(ClaimedChunk c : ClaimedChunks.inst.getAllChunks(w.provider.getDimension()))
+        int dim = w.provider.getDimension();
+
+        for(ClaimedChunk c : FTBUWorldDataMP.chunks.getAllChunks())
         {
-            //total++;
-
-            boolean isLoaded = c.getFlag(ClaimedChunk.CHUNKLOADED);
-
-            if(isLoaded)
+            if(c.pos.dim == dim)
             {
-                ForgePlayerMP p = c.getOwner();
-                if(p == null)
-                {
-                    isLoaded = false;
-                }
-                else
-                {
-                    ChunkloaderType type = FTBUPermissions.chunkloader_type.getEnum(p.getProfile());
+                //total++;
 
-                    if(type == ChunkloaderType.DISABLED)
+                boolean isLoaded = c.loaded;
+
+                if(isLoaded)
+                {
+                    ForgePlayerMP p = c.owner.toMP();
+
+                    if(p == null)
                     {
                         isLoaded = false;
                     }
-                    else if(type == ChunkloaderType.ONLINE)
+                    else
                     {
-                        isLoaded = p.isOnline();
-                    }
-                    else if(type == ChunkloaderType.OFFLINE)
-                    {
-                        if(!p.isOnline())
-                        {
-                            double max = FTBUPermissions.chunkloader_offline_timer.get(p.getProfile()).getAsDouble();
+                        ChunkloaderType type = FTBUPermissions.CHUNKLOADER_TYPE.get(p.getProfile());
 
-                            if(max > 0D && p.stats.getLastSeenDeltaInHours(p) > max)
+                        if(type == ChunkloaderType.DISABLED)
+                        {
+                            isLoaded = false;
+                        }
+                        else if(type == ChunkloaderType.ONLINE)
+                        {
+                            isLoaded = p.isOnline();
+                        }
+                        else if(type == ChunkloaderType.OFFLINE)
+                        {
+                            if(!p.isOnline())
                             {
-                                isLoaded = false;
-                                if(c.isForced)
+                                double max = FTBUPermissions.CHUNKLOADER_OFFLINE_TIMER.get(p.getProfile());
+
+                                if(max > 0D && FTBLibStats.getLastSeenDeltaInHours(p) > max)
                                 {
-                                    FTBU.logger.info("Unloading " + p.getProfile().getName() + " chunks for being offline for too long");
+                                    isLoaded = false;
+
+                                    if(c.forced)
+                                    {
+                                        FTBU.logger.info("Unloading " + p.getProfile().getName() + " chunks for being offline for too long");
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            //if(isLoaded) totalLoaded++;
-            //if(c.isChunkloaded) markedLoaded++;
+                //if(isLoaded) totalLoaded++;
+                //if(c.isChunkloaded) markedLoaded++;
 
-            if(c.isForced != isLoaded)
-            {
-                ForgeChunkManager.Ticket ticket = request(LMDimUtils.getWorld(c.pos.dim), c.getOwner());
-
-                if(ticket != null)
+                if(c.forced != isLoaded)
                 {
-                    if(isLoaded)
-                    {
-                        ForgeChunkManager.forceChunk(ticket, c.pos);
-                        //loaded++;
-                    }
-                    else
-                    {
-                        ForgeChunkManager.unforceChunk(ticket, c.pos);
-                        //unloaded++;
-                    }
+                    ForgeChunkManager.Ticket ticket = request(LMDimUtils.getWorld(c.pos.dim), c.owner.toMP());
 
-                    c.isForced = isLoaded;
+                    if(ticket != null)
+                    {
+                        if(isLoaded)
+                        {
+                            ForgeChunkManager.forceChunk(ticket, c.pos);
+                            //loaded++;
+                        }
+                        else
+                        {
+                            ForgeChunkManager.unforceChunk(ticket, c.pos);
+                            //unloaded++;
+                        }
+
+                        c.forced = isLoaded;
+                    }
                 }
             }
         }
@@ -238,6 +246,7 @@ public class FTBUChunkEventHandler implements ForgeChunkManager.LoadingCallback,
         //FTBLib.dev_logger.info("Total: " + total + ", Loaded: " + totalLoaded + "/" + markedLoaded + ", DLoaded: " + loaded + ", DUnloaded: " + unloaded);
     }
 
+    /*
     private void releaseTicket(ForgeChunkManager.Ticket t)
     {
         if(t.getModData().hasKey(PLAYER_ID_TAG))
@@ -257,6 +266,7 @@ public class FTBUChunkEventHandler implements ForgeChunkManager.LoadingCallback,
 
         ForgeChunkManager.releaseTicket(t);
     }
+    */
 
     public void clear()
     {
